@@ -1,6 +1,6 @@
 import React from 'react';
 import Todo from "./containers/Todo";
-import Forms from './modal/forms'
+import Forms from './modal/forms';
 import Categories from "./containers/Categories";
 import CategoriesArchivesC from "./containers/CategoriesArchives";
 import {useAppSelector} from "./hooks/hooks";
