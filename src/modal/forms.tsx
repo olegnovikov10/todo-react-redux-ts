@@ -1,9 +1,9 @@
 import React, {FC, useEffect, useState} from 'react';
 import {useDispatch} from "react-redux";
-import {actionFormEnum, addTodo, isOpenFormHandle} from '../store/reducers/TodoSlice'
+import {addTodo, isOpenFormHandle, editTodoAction} from '../store/reducers/TodoSlice'
 import {useAppSelector} from "../hooks/hooks"
-import {CategoryEnum, ITodo} from "../types/ITodo";
-import Select, {OnChangeValue} from 'react-select'
+import {ITodo} from "../types/ITodo";
+import SelectCmpn from "../components/SelectCmpn";
 
 
 enum typesInput {
@@ -11,35 +11,22 @@ enum typesInput {
     content = 'content'
 }
 
-interface StringOption {
-    label: string;
-    value: string;
-}
-
-
-const options = Object.keys(CategoryEnum).map(key => ({
-
-    label: key,
-    // @ts-ignore
-    value: CategoryEnum[key]
-}));
-
 const Forms: FC = () => {
-    const {formAction, editTodo} = useAppSelector(state => state.todo)
+    const regDate = '^([0-9]||[0-2][0-9]||3[0-1])/([0-9]||0[0-9]||1[0-1])/([0-9][0-9])?[0-9][0-9]$'
+    const {isEdit, editTodo} = useAppSelector(state => state.todo)
     const [todoName, setTodoName] = useState<string>('')
     const [contentTodo, setContentTodo] = useState<string>('')
-    const [currentCategory, setCurrentCategory] = useState<string>(options[0].value)
+    const [currentCategory, setCurrentCategory] = useState<string>('')
     const dispatch = useDispatch()
 
-
     useEffect(() => {
-        setTodoName(todoName)
-        setContentTodo(contentTodo)
-    }, [editTodo])
+        if (editTodo) {
+            setTodoName(editTodo.names)
+            setContentTodo(editTodo.text)
+            setCurrentCategory(editTodo.category)
+        }
 
-    const handleChangeSelect = (newValue: OnChangeValue<any, any>) => {
-        setContentTodo(newValue.value)
-    }
+    }, [editTodo])
 
     const onChangeHandle = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         if (e.target.name == typesInput.name) {
@@ -49,56 +36,91 @@ const Forms: FC = () => {
             setContentTodo(e.target.value)
         }
     }
+    const closeForm = () => {
+        setTodoName('editTodo.names')
+        setContentTodo('')
+        setCurrentCategory('')
+        dispatch(isOpenFormHandle())
+    }
 
-    const onClickForm = () => {
-        dispatch(isOpenFormHandle(actionFormEnum.ADD))
-        if (formAction == actionFormEnum.ADD) {
+    const parseDate = (): string[] => {
+        let datesArr: string[] = []
+        let reg = /[\r\n]+/g;
+
+        let titleSplit = contentTodo.replace(reg, " ").split(' ')
+
+        titleSplit.forEach((item) => {
+            if (item.match(regDate)) {
+                datesArr.push(item)
+            }
+        })
+
+        if (datesArr.length > 0) {
+            return [...datesArr]
+        } else {
+            return []
+        }
+    }
+
+    const onClickForm = (e) => {
+        if (contentTodo.length < 1) {
+            return false
+        }
+
+        if (!isEdit) {
             const res: ITodo = {
                 id: Date.now(),
                 created: new Date().toLocaleString('en', {month: 'short', year: 'numeric', day: 'numeric'}),
-                text: todoName,
-                names: contentTodo,
-                archive: true,
-                category: CategoryEnum.quote,
-                categoryText: 'fdsf'
+                names: todoName,
+                text: contentTodo,
+                archive: false,
+                category: currentCategory,
+                dates: parseDate()
             }
-            //dispatch(addTodo(res))
+            dispatch(addTodo(res))
+
         }
 
-
+        if (isEdit) {
+            if (editTodo) {
+                const result: ITodo = {
+                    ...editTodo,
+                    dates: parseDate(),
+                    text: contentTodo,
+                    names: todoName,
+                    category: currentCategory,
+                }
+                dispatch(editTodoAction(result))
+            }
+        }
     }
 
-    const getValue = () => {
-        return currentCategory ? options.find(c => c.value === currentCategory) : ''
-    }
+
     return <>
         <div className="form-wrapper ">
             <form action="" className="form-add-notes ">
                 <div className="form-content">
-                    <span className="material-icons links" id="close-form-span" onClick={() => {
-                        onClickForm();
-                    }}>close</span>
+                    <span className="material-icons links" id="close-form-span" onClick={closeForm}>close</span>
                     <div className="wrap-inputs">
                         <div>Categories</div>
-                        <Select  value={getValue()} options={options}/>
+                        <SelectCmpn currentCategory={currentCategory} setCategory={setCurrentCategory}/>
                     </div>
 
                     <div className="wrap-inputs">
                         <div className="notes-name-wrapper">Name notes</div>
-                        <input name={typesInput.name} className="notes-name" onChange={(e) => {
+                        <input required minLength={3} name={typesInput.name} className="notes-name" onChange={(e) => {
                             onChangeHandle(e)
                         }} value={todoName} type="text"/>
                     </div>
                     <div className="wrap-inputs">
                         <div>Notes content</div>
-                        <textarea rows={5} name={typesInput.content} value={contentTodo} onChange={(e) => {
+                        <textarea minLength={3} required rows={5} name={typesInput.content} value={contentTodo} onChange={(e) => {
                             onChangeHandle(e)
                         }} className="notes-title">s</textarea>
                     </div>
                     <div className="wrap-inputs">
-                        <input className="sendForm" type="button" value="Send"/>
-                        <input onClick={() => {
-                        }} id="closeForm" type="reset" value="cansel"/>
+                        <input onClick={onClickForm} className="sendForm" type="submit" value="Send"/>
+                        <input onClick={closeForm} id="closeForm" type="reset" value="cansel"/>
                     </div>
                 </div>
             </form>
